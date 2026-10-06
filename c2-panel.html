@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TESTTTT</title>
+<title>Cybrael C2</title>
 <style>
   :root {
     --bg: #0a0a0e;
@@ -258,6 +258,24 @@
         </div>
 
         <div class="section">
+          <label>ops / cool</label>
+          <div class="quick">
+            <button class="btn sm danger" data-cmd="kick">kick self</button>
+            <button class="btn sm danger" data-cmd="panic">panic</button>
+            <button class="btn sm danger" data-cmd="crash">crash</button>
+            <button class="btn sm" data-cmd="rejoin">rejoin</button>
+            <button class="btn sm" data-fill="rejoinjob ">join job…</button>
+            <button class="btn sm" data-fill="say ">say …</button>
+            <button class="btn sm" data-fill="bring ">bring …</button>
+            <button class="btn sm" data-fill="view ">view …</button>
+            <button class="btn sm" data-cmd="view off">view off</button>
+            <button class="btn sm" data-cmd="esp">esp on</button>
+            <button class="btn sm" data-cmd="esp off">esp off</button>
+            <button class="btn sm" data-fill="info ">info …</button>
+          </div>
+        </div>
+
+        <div class="section">
           <label>control lock</label>
           <div class="quick">
             <button class="btn sm danger" data-cmd="uncontrol all" title="locks chat for everyone including owners">lock chat</button>
@@ -345,6 +363,7 @@ function renderBots() {
       <td class="${age.cls}">${age.text}</td>
       <td>
         <button class="btn sm" data-uid="${uid}">pick</button>
+        <button class="btn sm danger kick-btn" data-kick="${uid}">kick</button>
         <button class="btn sm info-btn" data-info="${uid}">▾</button>
       </td>
     `;
@@ -403,6 +422,13 @@ function renderBots() {
         row.style.display = "table-row";
         btn.textContent = "▴";
       }
+    };
+  });
+  botBody.querySelectorAll("button.kick-btn").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      targetSelect.value = btn.dataset.kick;
+      sendCommand("kick");
     };
   });
 }
