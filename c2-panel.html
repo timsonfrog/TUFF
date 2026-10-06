@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybrael C2</title>
+<style>
+  :root {
+    --bg: #0d0d10;
+    --panel: #16161c;
+    --border: #2a2a35;
+    --text: #e8e8f0;
+    --muted: #8888a0;
+    --accent: #6c8cff;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 20px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    max-width: 1100px;
+  }
+  @media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .card h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 500;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .alive { color: var(--green); }
+  .stale { color: var(--yellow); }
+  .dead { color: var(--red); }
+  .btn {
+    background: #222230;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn:hover { background: #2c2c3a; border-color: #3a3a4a; }
+  .btn.primary {
+    background: var(--accent);
+    border-color: transparent;
+    color: #0d0d10;
+    font-weight: 600;
+  }
+  .btn.primary:hover { filter: brightness(1.1); }
+  .btn.danger {
+    background: #3a1a1a;
+    border-color: #5a2a2a;
+    color: var(--red);
+  }
+  .btn.sm { padding: 4px 8px; font-size: 11px; }
+  .row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  input, select {
+    background: #121218;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  input.cmd { flex: 1; min-width: 140px; }
+  .log {
+    max-height: 220px;
+    overflow-y: auto;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .log div { padding: 2px 0; border-bottom: 1px solid transparent; }
+  .log .ok { color: var(--green); }
+  .log .err { color: var(--red); }
+  .quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .empty {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 20px 0;
+    text-align: center;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  .status-dot.alive { background: var(--green); }
+  .status-dot.stale { background: var(--yellow); }
+  .status-dot.dead { background: var(--red); }
+</style>
+</head>
+<body>
+  <h1>Cybrael C2</h1>
+  <p class="sub">firebase · live bots · targeted + broadcast</p>
+
+  <div class="layout">
+    <div class="card">
+      <h2>Active Bots</h2>
+      <div id="botTableWrap">
+        <div class="empty" id="emptyBots">no bots yet — run the lua script</div>
+        <table id="botTable" style="display:none">
+          <thead>
+            <tr>
+              <th>status</th>
+              <th>name</th>
+              <th>userid</th>
+              <th>executor</th>
+              <th>game</th>
+              <th>seen</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="botBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>Send Command</h2>
+        <div class="row">
+          <select id="targetSelect">
+            <option value="broadcast">⚡ broadcast (all)</option>
+          </select>
+        </div>
+        <div class="row">
+          <input class="cmd" id="cmdInput" placeholder="sv name  |  a name  |  p name  |  x  |  control name" spellcheck="false">
+          <button class="btn primary" id="sendBtn">send</button>
+        </div>
+        <div class="quick">
+          <button class="btn sm" data-cmd="x">x stop</button>
+          <button class="btn sm" data-cmd="sv ">sv …</button>
+          <button class="btn sm" data-cmd="a ">a …</button>
+          <button class="btn sm" data-cmd="p ">p …</button>
+          <button class="btn sm" data-cmd="unsv all">unsv all</button>
+          <button class="btn sm" data-cmd="uncontrol all">uncontrol all</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Log</h2>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const BASE = "https://tuffaluff-4ad76-default-rtdb.firebaseio.com";
+const POLL_MS = 2500;
+const STALE_SEC = 12;
+const DEAD_SEC = 30;
+
+const botBody = document.getElementById("botBody");
+const botTable = document.getElementById("botTable");
+const emptyBots = document.getElementById("emptyBots");
+const targetSelect = document.getElementById("targetSelect");
+const cmdInput = document.getElementById("cmdInput");
+const sendBtn = document.getElementById("sendBtn");
+const logEl = document.getElementById("log");
+
+let bots = {};
+
+function log(msg, cls) {
+  const d = document.createElement("div");
+  if (cls) d.className = cls;
+  const t = new Date().toLocaleTimeString();
+  d.textContent = `[${t}] ${msg}`;
+  logEl.prepend(d);
+}
+
+function ageLabel(lastseen) {
+  if (!lastseen) return { text: "?", cls: "dead" };
+  const sec = Math.floor(Date.now() / 1000) - Number(lastseen);
+  if (sec < STALE_SEC) return { text: sec + "s", cls: "alive" };
+  if (sec < DEAD_SEC) return { text: sec + "s", cls: "stale" };
+  return { text: sec + "s", cls: "dead" };
+}
+
+function renderBots() {
+  const entries = Object.entries(bots);
+  if (entries.length === 0) {
+    botTable.style.display = "none";
+    emptyBots.style.display = "block";
+    // keep broadcast only
+    const cur = targetSelect.value;
+    targetSelect.innerHTML = `<option value="broadcast">⚡ broadcast (all)</option>`;
+    targetSelect.value = "broadcast";
+    return;
+  }
+  emptyBots.style.display = "none";
+  botTable.style.display = "table";
+  botBody.innerHTML = "";
+
+  const prev = targetSelect.value;
+  targetSelect.innerHTML = `<option value="broadcast">⚡ broadcast (all)</option>`;
+
+  for (const [uid, b] of entries) {
+    const age = ageLabel(b.lastseen);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><span class="status-dot ${age.cls}"></span><span class="${age.cls}">${age.cls}</span></td>
+      <td>${esc(b.name || "?")}</td>
+      <td>${esc(String(b.userid || uid))}</td>
+      <td>${esc(b.executor || "?")}</td>
+      <td>${esc(String(b.gameid || "?"))}</td>
+      <td class="${age.cls}">${age.text}</td>
+      <td><button class="btn sm" data-uid="${uid}">select</button></td>
+    `;
+    botBody.appendChild(tr);
+
+    const opt = document.createElement("option");
+    opt.value = uid;
+    opt.textContent = `${b.name || uid} (${uid})`;
+    targetSelect.appendChild(opt);
+  }
+
+  if ([...targetSelect.options].some(o => o.value === prev)) {
+    targetSelect.value = prev;
+  }
+
+  botBody.querySelectorAll("button[data-uid]").forEach(btn => {
+    btn.onclick = () => {
+      targetSelect.value = btn.dataset.uid;
+      cmdInput.focus();
+    };
+  });
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+async function fetchBots() {
+  try {
+    const res = await fetch(`${BASE}/bots.json`);
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    bots = data && typeof data === "object" ? data : {};
+    renderBots();
+  } catch (e) {
+    log("bot poll failed: " + e.message, "err");
+  }
+}
+
+function uid() {
+  return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+async function sendCommand() {
+  const cmd = cmdInput.value.trim();
+  if (!cmd) return;
+  const target = targetSelect.value;
+  const payload = {
+    id: uid(),
+    cmd: cmd,
+    ts: Math.floor(Date.now() / 1000),
+    from: "owner"
+  };
+
+  try {
+    let url;
+    if (target === "broadcast") {
+      url = `${BASE}/broadcast.json`;
+    } else {
+      url = `${BASE}/cmds/${target}.json`;
+    }
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(res.status);
+    log(`sent → ${target === "broadcast" ? "ALL" : target}: ${cmd}`, "ok");
+    cmdInput.value = "";
+  } catch (e) {
+    log("send failed: " + e.message, "err");
+  }
+}
+
+sendBtn.onclick = sendCommand;
+cmdInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") sendCommand();
+});
+
+document.querySelectorAll(".quick .btn").forEach(b => {
+  b.onclick = () => {
+    const c = b.dataset.cmd;
+    if (c.endsWith(" ")) {
+      cmdInput.value = c;
+      cmdInput.focus();
+    } else {
+      cmdInput.value = c;
+      sendCommand();
+    }
+  };
+});
+
+fetchBots();
+setInterval(fetchBots, POLL_MS);
+log("panel online · " + BASE);
+</script>
+</body>
+</html>
