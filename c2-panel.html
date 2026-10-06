@@ -250,6 +250,7 @@
 
 <script>
 const BASE = "https://tuffaluff-4ad76-default-rtdb.firebaseio.com";
+const OWNER_KEY = "cybrael-true-owner-9f3k";
 const POLL_MS = 2500;
 const STALE_SEC = 12;
 const DEAD_SEC = 30;
@@ -354,7 +355,8 @@ async function sendCommand(cmdOverride) {
     id: makeId(),
     cmd,
     ts: Math.floor(Date.now() / 1000),
-    from: "owner"
+    from: "owner",
+    key: OWNER_KEY
   };
   try {
     const url = target === "broadcast"
